@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>每日工程回報</title>
+<meta name="theme-color" content="#1f6feb">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="工程回報">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1d2330;--mut:#667085;--bd:#d6dae1;--pri:#1f6feb;--sel:#e3eeff;}
+@media(prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mut:#98a1b0;--bd:#343a45;--pri:#58a6ff;--sel:#23334d;}}
+*{box-sizing:border-box}
+body{margin:0 auto;background:var(--bg);color:var(--tx);font:16px/1.5 -apple-system,"Noto Sans TC","PingFang TC",sans-serif;padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(40px,env(safe-area-inset-bottom));max-width:720px}
+h1{font-size:20px;margin:4px 0 10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+textarea{resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.inline{display:flex;gap:8px}
+button{font:inherit;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:8px 14px;cursor:pointer}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button.sm{padding:3px 10px;font-size:13px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 12px;align-items:center}
+.opt{font-size:13px;color:var(--mut);display:flex;gap:6px;align-items:center;margin:0}
+.opt input,.opt select{width:auto}
+.roc{font-size:13px;color:var(--pri);margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:5px 12px;border-radius:999px;font-size:14px}
+.chip.on{background:var(--sel);border-color:var(--pri);color:var(--pri);font-weight:600}
+.pal button{padding:4px 10px;font-size:13px}
+.item{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;margin-bottom:6px}
+.item select{width:auto;padding:5px 6px}
+.item input{flex:1;min-width:120px;padding:5px 8px}
+.item .nm{font-weight:600}
+.item .x{margin-left:auto}
+pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-size:15px;line-height:1.6}
+.hide{display:none}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:9px 0}
+.tabs button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+.mut{font-size:13px;color:var(--mut)}
+.big{font-size:22px;font-weight:700}
+.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.sum div{background:var(--bg);border-radius:8px;padding:8px 4px}
+.sum .mut{margin-top:2px}
+.tag{font-size:12px;border-radius:6px;padding:1px 7px;margin-left:6px;background:var(--sel);color:var(--pri)}
+.tag.plan{background:var(--bg);color:var(--mut);border:1px solid var(--bd)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%;text-align:center}
+#toast.on{opacity:.92}
+</style>
+</head>
+<body>
+<h1>每日工程回報</h1>
+<div class="tabs">
+  <button id="tb-rep" class="on" onclick="tab('rep')">回報</button>
+  <button id="tb-his" onclick="tab('his')">紀錄</button>
+  <button id="tb-sta" onclick="tab('sta')">月統計</button>
+  <button id="tb-cfg" onclick="tab('cfg')">設定</button>
+</div>
+
+<!-- ========== 回報 ========== -->
+<section id="p-rep">
+  <div class="mut" style="margin-bottom:10px">第 1 組＝當天實際（計入月統計）；第 2 組起＝預計。同一天以實際為準。</div>
+  <div class="bar">
+    <button class="pri" onclick="addGroup()">＋ 新增一組</button>
+    <button onclick="saveRecords()">存入紀錄</button>
+    <button class="sm" onclick="resetAll()">重設畫面</button>
+  </div>
+  <div class="bar">
+    <label class="opt"><input type="checkbox" id="skipWeekend" checked onchange="refresh()">日期跳過週末</label>
+    <label class="opt"><input type="checkbox" id="carry" checked onchange="upd()">新增時帶入上一組工項</label>
+    <label class="opt"><input type="checkbox" id="saveOnCopy" checked onchange="upd()">複製時自動存入紀錄</label>
+    <label class="opt">工項分隔
+      <select id="sep" onchange="upd()">
+        <option value="、">、</option>
+        <option value="&">&amp;</option>
+        <option value="\n">換行編號</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="groups"></div>
+
+  <div class="card">
+    <h2>預覽 <span><button class="sm" onclick="copyText()" id="copyBtn">複製</button></span></h2>
+    <pre id="out"></pre>
+  </div>
+</section>
+
+<!-- ========== 紀錄 ========== -->
+<section id="p-his" class="hide">
+  <div class="card">
+    <label style="margin-top:0">月份</label>
+    <input type="month" id="hm" onchange="renderHist()">
+    <div class="bar" style="margin:10px 0 0">
+      <button class="sm pri" onclick="syncNow(false)">立即同步</button>
+      <button class="sm" onclick="exportData()">匯出備份</button>
+      <button class="sm" onclick="document.getElementById('imp').click()">匯入備份</button>
+      <input type="file" id="imp" accept=".json,application/json" class="hide" onchange="importData(this.files[0]);this.value=''">
+    </div>
+    <div class="mut syncStat" style="margin-top:8px"></div>
+  </div>
+  <div id="histList"></div>
+</section>
+
+<!-- ========== 月統計 ========== -->
+<section id="p-sta" class="hide">
+  <div class="card">
+    <label style="margin-top:0">月份</label>
+    <input type="month" id="sm" onchange="renderStats()">
+    <div class="mut" style="margin-top:6px">只統計每天第 1 組（實際）；預計不計入。</div>
+  </div>
+  <div id="statBox"></div>
+</section>
+
+<!-- ========== 設定 ========== -->
+<section id="p-cfg" class="hide">
+  <div class="card">
+    <h2>雲端同步（Google 試算表）</h2>
+    <label style="margin-top:0">Apps Script 網址</label>
+    <input id="sy-url" placeholder="https://script.google.com/macros/s/…/exec" autocapitalize="off" autocorrect="off">
+    <label>同步碼</label>
+    <input id="sy-tk" placeholder="與 Code.gs 裡的 TOKEN 相同" autocapitalize="off" autocorrect="off">
+    <div class="bar" style="margin:10px 0 0">
+      <button class="sm pri" onclick="saveSyncCfg()">儲存並同步</button>
+      <button class="sm" onclick="copySetupLink()">複製設定連結</button>
+      <button class="sm" onclick="clearSync()">清除</button>
+    </div>
+    <div class="mut syncStat" style="margin-top:8px"></div>
+    <div class="mut" style="margin-top:4px">「設定連結」內含同步碼，只傳給自己的設備，在另一台開啟即可自動填入。</div>
+  </div>
+  <div class="card">
+    <h2>選項清單</h2>
+    <label style="margin-top:0">工作井（用逗號分隔）</label>
+    <textarea id="cs" rows="2"></textarea>
+    <label>廠商（一行一個）</label>
+    <textarea id="cv" rows="3"></textarea>
+    <label>工項（一行一個，格式：名稱,類型　類型＝單井／區間／號機）</label>
+    <textarea id="cc" rows="11"></textarea>
+    <div class="bar" style="margin:10px 0 0">
+      <button class="sm pri" onclick="saveCfg()">儲存清單</button>
+      <button class="sm" onclick="resetCfg()">恢復預設</button>
+    </div>
+    <div class="mut">清單只存在這台設備，不影響已存的紀錄。</div>
+  </div>
+  <div class="mut" id="ver" style="text-align:center"></div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+const APP_VER='2.0';
+const KEY='dailyReportV2',HKEY='dailyReportHistoryV1',CKEY='dailyReportCfg',SKEY='dailyReportSync';
+const DEFCFG={
+  shafts:['#5','#6','#7','#9','#10','#11','#12'],
+  vendors:['測量隊'],
+  // type: s=單一工作井  r=工作井區間  m=號機
+  catalog:[
+    {name:'環片收方',type:'s'},
+    {name:'導線測量',type:'r'},
+    {name:'水準導線測量',type:'r'},
+    {name:'潛盾機姿態測量',type:'m'},
+    {name:'鏡面框收測',type:'s'},
+    {name:'Robtec設定',type:'m'},
+    {name:'坑下控制點座標查驗',type:'s'},
+    {name:'監測點查驗',type:'r'},
+    {name:'背填區設備放樣',type:'s'},
+    {name:'演算資料設定',type:'m'},
+    {name:'演算稜鏡設定',type:'m'}
+  ]
+};
+const TL={s:'單井',r:'區間',m:'號機'};
+let SHAFTS=[],VENDORS=[],CATALOG=[];
+let groups=[];
+let hist={};
+let sync={url:'',token:'',last:0};
+const $=id=>document.getElementById(id);
+
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const roc=s=>{if(!s)return'';const d=parse(s);return`${d.getFullYear()-1911}年${d.getMonth()+1}月${d.getDate()}日`};
+const wk=s=>s?'週'+'日一二三四五六'[parse(s).getDay()]:'';
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const clone=o=>JSON.parse(JSON.stringify(o));
+function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
+async function copy(t){
+  try{await navigator.clipboard.writeText(t)}catch(e){
+    const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+  }
+}
+
+function newGroup(){return{auto:true,date:'',shafts:['#11'],shaftC:'',vendor:'測量隊',vendorC:'',crew:'4',foreign:'',items:[],tool:'',other:''}}
+
+/* ---------- 選項清單設定 ---------- */
+function loadCfg(){
+  let c={};try{c=JSON.parse(localStorage.getItem(CKEY)||'{}')||{}}catch(e){}
+  SHAFTS=(c.shafts&&c.shafts.length)?c.shafts:[...DEFCFG.shafts];
+  VENDORS=(c.vendors&&c.vendors.length)?c.vendors:[...DEFCFG.vendors];
+  CATALOG=(c.catalog&&c.catalog.length)?c.catalog:clone(DEFCFG.catalog);
+}
+function renderCfg(){
+  $('sy-url').value=sync.url;$('sy-tk').value=sync.token;
+  $('cs').value=SHAFTS.join(', ');
+  $('cv').value=VENDORS.join('\n');
+  $('cc').value=CATALOG.map(c=>`${c.name},${TL[c.type]||'單井'}`).join('\n');
+  $('ver').textContent='版本 '+APP_VER;
+  statIdle();
+}
+function saveCfg(){
+  const sh=[...new Set($('cs').value.split(/[,，\n]/).map(s=>s.trim()).filter(Boolean))];
+  const vn=[...new Set($('cv').value.split('\n').map(s=>s.trim()).filter(Boolean))];
+  const ct=$('cc').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=l.split(/[,，|]/).map(s=>s.trim());
+    const t=p[1]||'';
+    return{name:p[0],type:/區/.test(t)?'r':/號|機/.test(t)?'m':'s'};
+  }).filter(c=>c.name);
+  if(!sh.length||!vn.length||!ct.length){toast('三個清單都至少要有一項');return}
+  try{localStorage.setItem(CKEY,JSON.stringify({shafts:sh,vendors:vn,catalog:ct}))}catch(e){}
+  SHAFTS=sh;VENDORS=vn;CATALOG=ct;
+  render();toast('已儲存清單');
+}
+function resetCfg(){
+  if(!confirm('清單恢復成預設？'))return;
+  try{localStorage.removeItem(CKEY)}catch(e){}
+  loadCfg();renderCfg();render();toast('已恢復預設');
+}
+
+/* ---------- 畫面記憶 ---------- */
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify({groups,skip:$('skipWeekend').checked,sep:$('sep').value,carry:$('carry').checked,saveOnCopy:$('saveOnCopy').checked}))}catch(e){}
+}
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(KEY)||'null');
+    if(s&&s.groups&&s.groups.length){
+      groups=s.groups.map(g=>Object.assign(newGroup(),g,{auto:true})); // 日期重新自動（今天起）
+      $('skipWeekend').checked=s.skip!==false;
+      $('sep').value=s.sep||'、';
+      $('carry').checked=s.carry!==false;
+      $('saveOnCopy').checked=s.saveOnCopy!==false;
+      return;
+    }
+  }catch(e){}
+  groups=[newGroup(),newGroup()];
+}
+function resetAll(){
+  if(!confirm('清除目前畫面並回復預設？（不影響已存入的紀錄）'))return;
+  groups=[newGroup(),newGroup()];
+  $('skipWeekend').checked=true;$('sep').value='、';$('carry').checked=true;$('saveOnCopy').checked=true;
+  render();
+}
+
+/* ---------- 紀錄資料 ---------- */
+// 每天一筆：hist['2026-11-06']={...內容, plan:false(實際)/true(預計), updatedAt:毫秒}
+// 刪除時留下 {deleted:true, plan, updatedAt}，讓其他設備同步時也會刪掉
+function loadHist(){try{hist=JSON.parse(localStorage.getItem(HKEY)||'{}')||{}}catch(e){hist={}}}
+function saveHist(){try{localStorage.setItem(HKEY,JSON.stringify(hist))}catch(e){toast('儲存失敗：瀏覽器禁止儲存')}}
+function histChanged(){saveHist();autoSync()}
+function snap(g){const c=clone(g);delete c.auto;return c}
+function hasWork(g){return g.items.some(it=>itemText(it))}
+const live=d=>hist[d]&&!hist[d].deleted;
+function mergeRec(a,b){
+  if(!a)return b;if(!b)return a;
+  const pa=a.plan?1:0,pb=b.plan?1:0;
+  if(!a.deleted&&!b.deleted&&pa!==pb)return pa<pb?a:b; // 實際優先於預計
+  return(a.updatedAt||0)>=(b.updatedAt||0)?a:b;
+}
+function saveRecords(silent){
+  let n=0;const now=Date.now();
+  groups.forEach((g,i)=>{
+    if(!g.date||!hasWork(g))return;
+    const plan=i>0;
+    if(plan&&live(g.date)&&!hist[g.date].plan)return; // 該日已有「實際」，預計不覆蓋
+    hist[g.date]=Object.assign(snap(g),{plan,updatedAt:now});n++;
+  });
+  if(n)histChanged();
+  if(!silent)toast(n?`已存入 ${n} 筆紀錄`:'沒有工項可存入');
+  return n;
+}
+
+/* ---------- 雲端同步 ---------- */
+function loadSync(){try{sync=Object.assign({url:'',token:'',last:0},JSON.parse(localStorage.getItem(SKEY)||'{}'))}catch(e){}}
+function saveSync(){try{localStorage.setItem(SKEY,JSON.stringify(sync))}catch(e){}}
+function stamp(ms){if(!ms)return'尚未同步';const d=new Date(ms);return`${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
+function setStat(t){document.querySelectorAll('.syncStat').forEach(e=>e.textContent=t)}
+function statIdle(){setStat(sync.url&&sync.token?`雲端同步已設定，上次同步：${stamp(sync.last)}`:'尚未設定雲端同步（到「設定」分頁填入）')}
+function viewOf(r){return{kind:r.plan?'預計':'實際',shaft:shaftText(r),vendor:vendorText(r),crew:r.crew,foreign:r.foreign,work:workText(r,'、'),tool:r.tool,other:r.other}}
+let syncing=false,syncTimer=null;
+async function syncNow(silent){
+  if(!sync.url||!sync.token){if(!silent)toast('請先到「設定」填入網址與同步碼');return false}
+  if(syncing)return false;
+  syncing=true;setStat('同步中…');
+  try{
+    const recs={};
+    Object.keys(hist).forEach(d=>{const r=hist[d];recs[d]=r.deleted?r:Object.assign({},r,{view:viewOf(r)})});
+    const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),25000);
+    const res=await fetch(sync.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:sync.token,action:'sync',records:recs}),signal:ctl.signal});
+    clearTimeout(to);
+    const j=await res.json();
+    if(!j.ok)throw new Error(j.error||'伺服器回應錯誤');
+    let n=0;
+    Object.keys(j.records||{}).forEach(d=>{const m=mergeRec(hist[d],j.records[d]);if(m!==hist[d]){hist[d]=m;n++}});
+    saveHist();
+    sync.last=Date.now();saveSync();statIdle();
+    if(!silent||n)toast(n?`同步完成，更新 ${n} 筆`:'同步完成');
+    if(n)refreshViews();
+    return true;
+  }catch(e){
+    setStat('同步失敗（'+(e.name==='AbortError'?'逾時':e.message)+'），資料仍在本機');
+    if(!silent)toast('同步失敗，資料仍存在本機');
+    return false;
+  }finally{syncing=false}
+}
+function autoSync(){
+  if(!sync.url||!sync.token)return;
+  clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncNow(true),800);
+}
+function refreshViews(){
+  if(!$('p-his').classList.contains('hide'))renderHist();
+  if(!$('p-sta').classList.contains('hide'))renderStats();
+}
+function saveSyncCfg(){
+  const u=$('sy-url').value.trim(),t=$('sy-tk').value.trim();
+  if(!/^https:\/\//.test(u)||!t){toast('請填入完整網址（https 開頭）與同步碼');return}
+  sync.url=u;sync.token=t;saveSync();syncNow(false);
+}
+function clearSync(){
+  if(!confirm('清除這台設備的同步設定？（雲端與本機資料都不會刪除）'))return;
+  sync={url:'',token:'',last:0};saveSync();renderCfg();
+}
+function copySetupLink(){
+  if(!sync.url||!sync.token){toast('請先儲存網址與同步碼');return}
+  const b=btoa(unescape(encodeURIComponent(JSON.stringify({u:sync.url,t:sync.token}))));
+  copy(location.origin+location.pathname+'#s='+encodeURIComponent(b));
+  toast('已複製設定連結，在另一台設備開啟即可');
+}
+function applyHash(){
+  try{
+    const s=new URLSearchParams(location.hash.slice(1)).get('s');
+    if(!s)return;
+    const o=JSON.parse(decodeURIComponent(escape(atob(s))));
+    if(o.u&&o.t){sync.url=o.u;sync.token=o.t;saveSync();toast('已套用同步設定')}
+    window.history.replaceState(null,'',location.pathname+location.search);
+  }catch(e){}
+}
+
+/* ---------- 日期 ---------- */
+function nextDate(prev){
+  const d=parse(prev);d.setDate(d.getDate()+1);
+  if($('skipWeekend').checked){while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);}
+  return iso(d);
+}
+function resolveDates(){
+  groups.forEach((g,i)=>{
+    if(g.auto)g.date=i===0?iso(new Date()):(groups[i-1].date?nextDate(groups[i-1].date):'');
+  });
+}
+
+/* ---------- 輸出 ---------- */
+function shaftText(g){return[...g.shafts,(g.shaftC||'').trim()].filter(Boolean).join('、')}
+function detail(it){
+  if(it.type==='s')return it.a;
+  if(it.type==='r')return it.a===it.b?it.a:`${it.a}-${it.b}`;
+  if(it.type==='m')return`No.${it.m}`;
+  return'';
+}
+function itemText(it){
+  if(it.type==='t')return(it.text||'').trim();
+  return detail(it)+it.name;
+}
+function workText(g,sep){
+  sep=sep||$('sep').value;
+  const list=g.items.map(itemText).filter(Boolean);
+  if(sep==='\n')return list.length?'\n'+list.map((t,i)=>`${i+1}. ${t}`).join('\n'):'';
+  return list.join(sep);
+}
+function vendorText(g){return((g.vendor==='__other'?g.vendorC:g.vendor)||'').trim()}
+function build(){
+  return groups.map(g=>[
+    `日期：${roc(g.date)}`,
+    `工作井：${shaftText(g)}`,
+    `廠商：${vendorText(g)}`,
+    `出工人數：${g.crew}`,
+    `外勞人數：${g.foreign}`,
+    `工項：${workText(g)}`,
+    `機具：${g.tool}`,
+    `其他：${g.other}`
+  ].join('\n')).join('\n\n');
+}
+
+/* ---------- 回報畫面 ---------- */
+function shOpts(cur){return SHAFTS.map(x=>`<option${x===cur?' selected':''}>${x}</option>`).join('')}
+function vOpts(cur){
+  const list=(cur&&cur!=='__other'&&!VENDORS.includes(cur))?[...VENDORS,cur]:VENDORS;
+  return list.map(x=>`<option value="${esc(x)}"${cur===x?' selected':''}>${esc(x)}</option>`).join('')
+   +`<option value="__other"${cur==='__other'?' selected':''}>其他（自填）</option>`;
+}
+function itemHTML(gi,ii,it){
+  const set=k=>`onchange="setItem(${gi},${ii},'${k}',this.value)"`;
+  let h='';
+  if(it.type==='t'){
+    h=`<input placeholder="自填工項" value="${esc(it.text||'')}" oninput="setItem(${gi},${ii},'text',this.value)">`;
+  }else{
+    if(it.type==='s')h+=`<select ${set('a')}>${shOpts(it.a)}</select>`;
+    if(it.type==='r')h+=`<select ${set('a')}>${shOpts(it.a)}</select>~<select ${set('b')}>${shOpts(it.b)}</select>`;
+    if(it.type==='m')h+=`<select ${set('m')}>${[1,2,3,4,5,6].map(n=>`<option value="${n}"${String(it.m)===String(n)?' selected':''}>${n}號機</option>`).join('')}</select>`;
+    h+=`<span class="nm">${esc(it.name)}</span>`;
+  }
+  return`<div class="item">${h}<button class="sm x" onclick="delItem(${gi},${ii})">✕</button></div>`;
+}
+function render(){
+  resolveDates();
+  $('groups').innerHTML=groups.map((g,i)=>{
+    const ex=(i===0&&live(g.date))?hist[g.date]:null;
+    return`
+  <div class="card">
+    <h2><span>第 ${i+1} 組 <span class="mut">（${i?'預計':'實際'}）</span></span><span>${ex?`<button class="sm" onclick="fillFromRec(0)">載入${ex.plan?'預計':'已存'}</button> `:''}${i>0?`<button class="sm" onclick="carryFrom(${i})">帶入上一組工項</button> `:''}${groups.length>1?`<button class="sm" onclick="delGroup(${i})">刪除</button>`:''}</span></h2>
+
+    <label>日期 ${g.auto?'（自動）':'（手動）'}</label>
+    <div class="inline">
+      <input type="date" id="d${i}" value="${g.date}" onchange="setDate(${i},this.value)">
+      ${g.auto?'':`<button class="sm" onclick="autoDate(${i})">回復自動</button>`}
+    </div>
+    <div class="roc" id="r${i}">${roc(g.date)}（${wk(g.date)}）</div>
+
+    <label>工作井（可多選）</label>
+    <div class="chips">${SHAFTS.map((s,k)=>`<button class="chip${g.shafts.includes(s)?' on':''}" onclick="toggleShaft(${i},${k})">${esc(s)}</button>`).join('')}</div>
+    <input style="margin-top:6px" placeholder="其他工作井（自填，可留空）" value="${esc(g.shaftC)}" oninput="groups[${i}].shaftC=this.value;upd()">
+
+    <label>廠商</label>
+    <select onchange="setVendor(${i},this.value)">${vOpts(g.vendor)}</select>
+    <input class="${g.vendor==='__other'?'':'hide'}" style="margin-top:6px" placeholder="自填廠商" value="${esc(g.vendorC)}" oninput="groups[${i}].vendorC=this.value;upd()">
+
+    <div class="row">
+      <div><label>出工人數</label><input inputmode="numeric" value="${esc(g.crew)}" oninput="groups[${i}].crew=this.value;upd()"></div>
+      <div><label>外勞人數</label><input inputmode="numeric" value="${esc(g.foreign)}" oninput="groups[${i}].foreign=this.value;upd()"></div>
+    </div>
+
+    <label>工項</label>
+    <div>${g.items.map((it,ii)=>itemHTML(i,ii,it)).join('')}</div>
+    <div class="chips pal">
+      ${CATALOG.map((c,ci)=>`<button onclick="addItem(${i},${ci})">＋${esc(c.name)}</button>`).join('')}
+      <button onclick="addItem(${i},-1)">＋自填工項</button>
+    </div>
+
+    <label>機具</label><input value="${esc(g.tool)}" oninput="groups[${i}].tool=this.value;upd()">
+    <label>其他</label><input value="${esc(g.other)}" oninput="groups[${i}].other=this.value;upd()">
+  </div>`}).join('');
+  upd();
+}
+function upd(){$('out').textContent=build();save()}
+function refresh(){
+  resolveDates();
+  groups.forEach((g,i)=>{
+    const el=$('d'+i);if(el)el.value=g.date;
+    const r=$('r'+i);if(r)r.textContent=`${roc(g.date)}（${wk(g.date)}）`;
+  });
+  upd();
+}
+
+/* ---------- 操作 ---------- */
+function setDate(i,v){if(!v)return;groups[i].date=v;groups[i].auto=false;render()}
+function autoDate(i){groups[i].auto=true;render()}
+function toggleShaft(i,k){
+  const g=groups[i],s=SHAFTS[k];
+  g.shafts=g.shafts.includes(s)?g.shafts.filter(x=>x!==s):SHAFTS.filter(x=>x===s||g.shafts.includes(x));
+  render();
+}
+function setVendor(i,v){groups[i].vendor=v;render()}
+function addItem(gi,ci){
+  const g=groups[gi];
+  if(ci<0){g.items.push({type:'t',text:''});}
+  else{
+    const c=CATALOG[ci];
+    const a=g.shafts[0]||SHAFTS[0], b=g.shafts[g.shafts.length-1]||a;
+    g.items.push({type:c.type,name:c.name,a,b,m:'1'});
+  }
+  render();
+}
+function setItem(gi,ii,k,v){groups[gi].items[ii][k]=v;upd()}
+function delItem(gi,ii){groups[gi].items.splice(ii,1);render()}
+function carryFrom(i){
+  if(i<1)return;
+  if(groups[i].items.length&&!confirm('會取代本組目前的工項，確定？'))return;
+  groups[i].items=clone(groups[i-1].items);
+  render();toast('已帶入上一組工項');
+}
+function addGroup(){
+  const prev=groups[groups.length-1];
+  const g=newGroup();
+  if(prev){
+    g.shafts=[...prev.shafts];g.shaftC=prev.shaftC;g.vendor=prev.vendor;g.vendorC=prev.vendorC;g.crew=prev.crew;
+    if($('carry').checked)g.items=clone(prev.items);
+  }
+  groups.push(g);render();
+}
+function delGroup(i){groups.splice(i,1);render()}
+function fromRec(r,keep){
+  const g=Object.assign(newGroup(),clone(r),keep);
+  delete g.plan;delete g.updatedAt;delete g.deleted;
+  return g;
+}
+function fillFromRec(i){
+  const g=groups[i],r=hist[g.date];
+  if(!r||r.deleted)return;
+  if(hasWork(g)&&!confirm('會取代本組目前內容，確定？'))return;
+  groups[i]=fromRec(r,{auto:g.auto,date:g.date});
+  render();
+}
+async function copyText(){
+  await copy(build());
+  const b=$('copyBtn');b.textContent='已複製 ✓';setTimeout(()=>b.textContent='複製',1500);
+  if($('saveOnCopy').checked){const n=saveRecords(true);if(n)toast(`已複製並存入 ${n} 筆紀錄`)}
+}
+
+/* ---------- 分頁 ---------- */
+function tab(t){
+  ['rep','his','sta','cfg'].forEach(x=>{
+    $('p-'+x).classList.toggle('hide',x!==t);
+    $('tb-'+x).classList.toggle('on',x===t);
+  });
+  if(t==='his'){renderHist();statIdle()}
+  if(t==='sta')renderStats();
+  if(t==='cfg')renderCfg();
+  window.scrollTo(0,0);
+}
+
+/* ---------- 紀錄頁 ---------- */
+const recsOf=m=>Object.keys(hist).filter(d=>d.startsWith(m)&&live(d)).sort();
+function renderHist(){
+  const m=$('hm').value;
+  const ds=recsOf(m).reverse();
+  $('histList').innerHTML=ds.length?ds.map(d=>{
+    const g=hist[d];
+    return`<div class="card">
+      <h2><span>${roc(d)}（${wk(d)}）<span class="tag${g.plan?' plan':''}">${g.plan?'預計':'實際'}</span></span><span><button class="sm" onclick="loadRec('${d}')">載入</button> <button class="sm" onclick="delRec('${d}')">刪除</button></span></h2>
+      <div class="mut">工作井：${esc(shaftText(g))}　廠商：${esc(vendorText(g))}　出工 ${esc(g.crew)}${g.foreign?`　外勞 ${esc(g.foreign)}`:''}</div>
+      <div style="margin-top:6px">${esc(workText(g,'、'))}</div>
+    </div>`}).join(''):`<div class="card mut">這個月還沒有紀錄。在「回報」按「存入紀錄」或「複製」就會記錄。</div>`;
+}
+function loadRec(d){
+  if(!live(d))return;
+  if(!confirm('載入會取代回報頁目前內容，確定？'))return;
+  groups=[fromRec(hist[d],{auto:false,date:d})];
+  render();tab('rep');
+}
+function delRec(d){
+  if(!live(d))return;
+  if(!confirm(`刪除 ${roc(d)} 的紀錄？`))return;
+  hist[d]={deleted:true,plan:!!hist[d].plan,updatedAt:Date.now()};
+  histChanged();renderHist();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify({version:2,history:hist})],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download=`工程回報紀錄_${iso(new Date())}.json`;
+  document.body.appendChild(a);a.click();a.remove();
+}
+function importData(f){
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      const h=o.history||o;
+      let n=0;
+      Object.keys(h).forEach(d=>{
+        const x=h[d];
+        if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&x&&(x.deleted||Array.isArray(x.items))){
+          const m=mergeRec(hist[d],x);
+          if(m!==hist[d]){hist[d]=m;n++}
+        }
+      });
+      histChanged();renderHist();toast(`已匯入 ${n} 筆`);
+    }catch(e){toast('檔案格式錯誤')}
+  };
+  r.readAsText(f);
+}
+
+/* ---------- 月統計（只算實際） ---------- */
+function calcStats(m){
+  const ds=recsOf(m).filter(d=>!hist[d].plan);
+  let crew=0,foreign=0;const map={};
+  ds.forEach(d=>{
+    const g=hist[d];
+    crew+=parseFloat(g.crew)||0;foreign+=parseFloat(g.foreign)||0;
+    (g.items||[]).forEach(it=>{
+      const name=it.type==='t'?(it.text||'').trim():it.name;
+      if(!name)return;
+      const e=map[name]||(map[name]={days:new Set(),det:{}});
+      e.days.add(d);
+      const k=detail(it);
+      (e.det[k]||(e.det[k]=new Set())).add(d);
+    });
+  });
+  const order=n=>{const i=CATALOG.findIndex(c=>c.name===n);return i<0?999:i};
+  const names=Object.keys(map).sort((a,b)=>order(a)-order(b)||a.localeCompare(b));
+  return{ds,crew,foreign,map,names};
+}
+const detKeys=e=>Object.keys(e.det).filter(Boolean).sort((a,b)=>e.det[b].size-e.det[a].size||a.localeCompare(b,'zh',{numeric:true}));
+function monthLabel(m){const[y,mo]=m.split('-').map(Number);return`${y-1911}年${mo}月`}
+function statText(m,s){
+  const lines=[`${monthLabel(m)} 工項統計`,`出工天數：${s.ds.length}天`,`出工人次：${s.crew}`,`外勞人次：${s.foreign}`,''];
+  s.names.forEach(n=>{
+    const e=s.map[n],ks=detKeys(e);
+    lines.push(`${n}：${e.days.size}天`+(ks.length?`（${ks.map(k=>`${k} ${e.det[k].size}天`).join('、')}）`:''));
+  });
+  return lines.join('\n');
+}
+function renderStats(){
+  const m=$('sm').value,s=calcStats(m);
+  if(!s.ds.length){$('statBox').innerHTML=`<div class="card mut">${monthLabel(m)}還沒有「實際」紀錄。</div>`;return}
+  window._statText=statText(m,s);
+  $('statBox').innerHTML=`
+  <div class="card">
+    <div class="sum">
+      <div><div class="big">${s.ds.length}</div><div class="mut">出工天數</div></div>
+      <div><div class="big">${s.crew}</div><div class="mut">出工人次</div></div>
+      <div><div class="big">${s.foreign}</div><div class="mut">外勞人次</div></div>
+    </div>
+    <div class="bar" style="margin:10px 0 0"><button class="sm" onclick="copyStat()">複製統計文字</button></div>
+  </div>`+s.names.map(n=>{
+    const e=s.map[n],ks=detKeys(e);
+    const days=[...e.days].sort().map(d=>parse(d).getDate()).join('、');
+    return`<div class="card">
+      <h2>${esc(n)} <span class="big" style="font-size:18px">${e.days.size} 天</span></h2>
+      ${ks.length?`<div>${ks.map(k=>`${esc(k)}：${e.det[k].size}天`).join('　')}</div>`:''}
+      <div class="mut" style="margin-top:4px">日期：${days}日</div>
+    </div>`}).join('');
+}
+async function copyStat(){await copy(window._statText||'');toast('已複製統計')}
+
+/* ---------- 啟動 ---------- */
+loadCfg();loadHist();loadSync();applyHash();load();
+$('hm').value=$('sm').value=iso(new Date()).slice(0,7);
+render();
+autoSync();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-sync.last>30000)autoSync()});
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
