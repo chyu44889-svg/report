@@ -157,7 +157,7 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 <div id="toast"></div>
 
 <script>
-const APP_VER='2.0';
+const APP_VER='2.1';
 const KEY='dailyReportV2',HKEY='dailyReportHistoryV1',CKEY='dailyReportCfg',SKEY='dailyReportSync';
 const DEFCFG={
   shafts:['#5','#6','#7','#9','#10','#11','#12'],
@@ -441,7 +441,10 @@ function render(){
     <input class="${g.vendor==='__other'?'':'hide'}" style="margin-top:6px" placeholder="自填廠商" value="${esc(g.vendorC)}" oninput="groups[${i}].vendorC=this.value;upd()">
 
     <div class="row">
-      <div><label>出工人數</label><input inputmode="numeric" value="${esc(g.crew)}" oninput="groups[${i}].crew=this.value;upd()"></div>
+      <div><label>出工人數</label>
+        <select onchange="setCrew(${i},this.value)">${crewOpts(g)}</select>
+        <input class="${crewIsOther(g)?'':'hide'}" style="margin-top:6px" inputmode="numeric" placeholder="自填人數" value="${esc(g.crew)}" oninput="groups[${i}].crew=this.value;upd()">
+      </div>
       <div><label>外勞人數</label><input inputmode="numeric" value="${esc(g.foreign)}" oninput="groups[${i}].foreign=this.value;upd()"></div>
     </div>
 
@@ -476,6 +479,20 @@ function toggleShaft(i,k){
   render();
 }
 function setVendor(i,v){groups[i].vendor=v;render()}
+const CREW_LIST=['1','2','3','4','5','6','7','8','9'];
+const crewIsOther=g=>!!g.crewOther||(g.crew!==''&&!CREW_LIST.includes(String(g.crew)));
+function crewOpts(g){
+  const o=crewIsOther(g);
+  return`<option value=""${!o&&g.crew===''?' selected':''}>（空白）</option>`
+    +CREW_LIST.map(n=>`<option value="${n}"${!o&&String(g.crew)===n?' selected':''}>${n}</option>`).join('')
+    +`<option value="__other"${o?' selected':''}>其他（自填）</option>`;
+}
+function setCrew(i,v){
+  const g=groups[i];
+  if(v==='__other'){g.crewOther=true;if(CREW_LIST.includes(String(g.crew)))g.crew=''}
+  else{g.crewOther=false;g.crew=v}
+  render();
+}
 function addItem(gi,ci){
   const g=groups[gi];
   if(ci<0){g.items.push({type:'t',text:''});}
