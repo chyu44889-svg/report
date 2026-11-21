@@ -39,8 +39,10 @@ button.sm{padding:3px 10px;font-size:13px}
 .item{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--bd);border-radius:8px;padding:6px 8px;margin-bottom:6px}
 .item select{width:auto;padding:5px 6px}
 .item input{flex:1;min-width:120px;padding:5px 8px}
+.item input.ton{flex:none;width:84px;min-width:0}
 .item .nm{font-weight:600}
 .item .x{margin-left:auto}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-size:15px;line-height:1.6}
 .hide{display:none}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
@@ -53,6 +55,8 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 .sum .mut{margin-top:2px}
 .tag{font-size:12px;border-radius:6px;padding:1px 7px;margin-left:6px;background:var(--sel);color:var(--pri)}
 .tag.plan{background:var(--bg);color:var(--mut);border:1px solid var(--bd)}
+.tag.v{background:#fff1d6;color:#8a5a00}
+@media(prefers-color-scheme:dark){.tag.v{background:#3a2f18;color:#f0c674}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:8px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%;text-align:center}
 #toast.on{opacity:.92}
 </style>
@@ -68,7 +72,7 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 
 <!-- ========== 回報 ========== -->
 <section id="p-rep">
-  <div class="mut" style="margin-bottom:10px">第 1 組＝當天實際（計入月統計）；第 2 組起＝預計。同一天以實際為準。</div>
+  <div class="mut" style="margin-bottom:10px">每個廠商的第 1 組＝當天實際（計入月統計）；同廠商第 2 組起＝預計。同一天同廠商以實際為準。</div>
   <div class="bar">
     <button class="pri" onclick="addGroup()">＋ 新增一組</button>
     <button onclick="saveRecords()">存入紀錄</button>
@@ -76,7 +80,7 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
   </div>
   <div class="bar">
     <label class="opt"><input type="checkbox" id="skipWeekend" checked onchange="refresh()">日期跳過週末</label>
-    <label class="opt"><input type="checkbox" id="carry" checked onchange="upd()">新增時帶入上一組工項</label>
+    <label class="opt"><input type="checkbox" id="carry" checked onchange="upd()">新增時帶入上一組工項與機具</label>
     <label class="opt"><input type="checkbox" id="saveOnCopy" checked onchange="upd()">複製時自動存入紀錄</label>
     <label class="opt">工項分隔
       <select id="sep" onchange="upd()">
@@ -98,8 +102,10 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 <!-- ========== 紀錄 ========== -->
 <section id="p-his" class="hide">
   <div class="card">
-    <label style="margin-top:0">月份</label>
-    <input type="month" id="hm" onchange="renderHist()">
+    <div class="row">
+      <div><label style="margin-top:0">月份</label><input type="month" id="hm" onchange="renderHist()"></div>
+      <div><label style="margin-top:0">廠商</label><select id="hv" onchange="renderHist()"></select></div>
+    </div>
     <div class="bar" style="margin:10px 0 0">
       <button class="sm pri" onclick="syncNow(false)">立即同步</button>
       <button class="sm" onclick="exportData()">匯出備份</button>
@@ -114,9 +120,11 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 <!-- ========== 月統計 ========== -->
 <section id="p-sta" class="hide">
   <div class="card">
-    <label style="margin-top:0">月份</label>
-    <input type="month" id="sm" onchange="renderStats()">
-    <div class="mut" style="margin-top:6px">只統計每天第 1 組（實際）；預計不計入。</div>
+    <div class="row">
+      <div><label style="margin-top:0">月份</label><input type="month" id="sm" onchange="renderStats()"></div>
+      <div><label style="margin-top:0">廠商</label><select id="sv" onchange="renderStats()"></select></div>
+    </div>
+    <div class="mut" style="margin-top:6px">只統計該廠商每天第 1 組（實際）；預計不計入。</div>
   </div>
   <div id="statBox"></div>
 </section>
@@ -143,8 +151,13 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
     <textarea id="cs" rows="2"></textarea>
     <label>廠商（一行一個）</label>
     <textarea id="cv" rows="3"></textarea>
-    <label>工項（一行一個，格式：名稱,類型　類型＝單井／區間／號機）</label>
-    <textarea id="cc" rows="11"></textarea>
+    <div class="mut">新增或改名廠商後，先按下方「儲存清單」，才能在下面選到它。改名等於新廠商，紀錄會分開存。</div>
+    <label>要編輯哪個廠商的工項與機具</label>
+    <select id="cvs" onchange="cfgVendorChange(this.value)"></select>
+    <label>工項（一行一個，格式：名稱,類型　類型＝單井／區間／號機／多區段）</label>
+    <textarea id="cc" rows="9"></textarea>
+    <label>機具（一行一個，格式：名稱,類型　類型＝數量／噸數；噸數的名稱請寫 T全吊）</label>
+    <textarea id="cm" rows="6"></textarea>
     <div class="bar" style="margin:10px 0 0">
       <button class="sm pri" onclick="saveCfg()">儲存清單</button>
       <button class="sm" onclick="resetCfg()">恢復預設</button>
@@ -157,28 +170,49 @@ pre{white-space:pre-wrap;word-break:break-all;margin:0;font-family:inherit;font-
 <div id="toast"></div>
 
 <script>
-const APP_VER='2.1';
+const APP_VER='3.0';
 const KEY='dailyReportV2',HKEY='dailyReportHistoryV1',CKEY='dailyReportCfg',SKEY='dailyReportSync';
-const DEFCFG={
+const DEFV='測量隊';
+// 工項類型  s=單一工作井  r=工作井區間  m=號機  g=多區段（區段或單一井號，可增減）
+// 機具類型  cn=名稱*數量  ct=噸數T全吊*數量
+const DEF={
   shafts:['#5','#6','#7','#9','#10','#11','#12'],
-  vendors:['測量隊'],
-  // type: s=單一工作井  r=工作井區間  m=號機
-  catalog:[
-    {name:'環片收方',type:'s'},
-    {name:'導線測量',type:'r'},
-    {name:'水準導線測量',type:'r'},
-    {name:'潛盾機姿態測量',type:'m'},
-    {name:'鏡面框收測',type:'s'},
-    {name:'Robtec設定',type:'m'},
-    {name:'坑下控制點座標查驗',type:'s'},
-    {name:'監測點查驗',type:'r'},
-    {name:'背填區設備放樣',type:'s'},
-    {name:'演算資料設定',type:'m'},
-    {name:'演算稜鏡設定',type:'m'}
-  ]
+  vendors:['測量隊','精隼'],
+  catalogs:{
+    '測量隊':[
+      {name:'環片收方',type:'s'},
+      {name:'導線測量',type:'r'},
+      {name:'水準導線測量',type:'r'},
+      {name:'潛盾機姿態測量',type:'m'},
+      {name:'鏡面框收測',type:'s'},
+      {name:'Robtec設定',type:'m'},
+      {name:'坑下控制點座標查驗',type:'s'},
+      {name:'監測點查驗',type:'r'},
+      {name:'背填區設備放樣',type:'s'},
+      {name:'演算資料設定',type:'m'},
+      {name:'演算稜鏡設定',type:'m'}
+    ],
+    '精隼':[
+      {name:'沉陷監測',type:'g'},
+      {name:'沉陷點設置',type:'g'},
+      {name:'反力座應變計安裝',type:'s'}
+    ]
+  },
+  machines:{
+    '測量隊':[],
+    '精隼':[
+      {name:'交圍車',type:'cn'},
+      {name:'小吊車',type:'cn'},
+      {name:'吊卡車',type:'cn'},
+      {name:'堆高機',type:'cn'},
+      {name:'T全吊',type:'ct'}
+    ]
+  }
 };
-const TL={s:'單井',r:'區間',m:'號機'};
-let SHAFTS=[],VENDORS=[],CATALOG=[];
+const TL={s:'單井',r:'區間',m:'號機',g:'多區段'};
+const ML={cn:'數量',ct:'噸數'};
+const NUM_LIST=['1','2','3','4','5','6','7','8','9'];
+let SHAFTS=[],VENDORS=[],CATS={},MACH={};
 let groups=[];
 let hist={};
 let sync={url:'',token:'',last:0};
@@ -189,7 +223,7 @@ const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parse=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
 const roc=s=>{if(!s)return'';const d=parse(s);return`${d.getFullYear()-1911}年${d.getMonth()+1}月${d.getDate()}日`};
 const wk=s=>s?'週'+'日一二三四五六'[parse(s).getDay()]:'';
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const clone=o=>JSON.parse(JSON.stringify(o));
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
 async function copy(t){
@@ -198,35 +232,82 @@ async function copy(t){
   }
 }
 
-function newGroup(){return{auto:true,date:'',shafts:['#11'],shaftC:'',vendor:'測量隊',vendorC:'',crew:'4',foreign:'',items:[],tool:'',other:''}}
+const vname=g=>String((g.vendor==='__other'?g.vendorC:g.vendor)||'').trim();
+const vendorText=vname;
+const defVendor=()=>VENDORS.includes(DEFV)?DEFV:(VENDORS[0]||DEFV);
+const catalogFor=g=>CATS[vname(g)]||[];
+const machinesFor=g=>MACH[vname(g)]||[];
+function newGroup(){return{auto:true,date:'',shafts:['#11'],shaftC:'',vendor:defVendor(),vendorC:'',crew:'4',crewOther:false,foreign:'',foreignOther:false,items:[],tools:[],other:''}}
+function fixGroup(g){
+  const n=Object.assign(newGroup(),g);
+  if(!Array.isArray(n.items))n.items=[];
+  if(!Array.isArray(n.tools))n.tools=[];
+  if(typeof g.tool==='string'&&g.tool.trim()&&!(g.tools&&g.tools.length))n.tools=[{type:'x',text:g.tool.trim()}];
+  delete n.tool;
+  return n;
+}
 
 /* ---------- 選項清單設定 ---------- */
 function loadCfg(){
   let c={};try{c=JSON.parse(localStorage.getItem(CKEY)||'{}')||{}}catch(e){}
-  SHAFTS=(c.shafts&&c.shafts.length)?c.shafts:[...DEFCFG.shafts];
-  VENDORS=(c.vendors&&c.vendors.length)?c.vendors:[...DEFCFG.vendors];
-  CATALOG=(c.catalog&&c.catalog.length)?c.catalog:clone(DEFCFG.catalog);
+  SHAFTS=(c.shafts&&c.shafts.length)?c.shafts:[...DEF.shafts];
+  const vs=(c.vendors&&c.vendors.length)?[...c.vendors]:[...DEF.vendors];
+  if((c.v||0)<3&&!vs.includes('精隼'))vs.push('精隼'); // 舊版設定自動補上新廠商
+  VENDORS=vs;
+  const oldCat=(c.catalog&&c.catalog.length)?c.catalog:null; // 舊版單一工項清單 → 測量隊
+  CATS={};MACH={};
+  VENDORS.forEach(v=>{
+    CATS[v]=(c.catalogs&&c.catalogs[v])||(v===DEFV&&oldCat)||clone(DEF.catalogs[v]||[]);
+    MACH[v]=(c.machines&&c.machines[v])||clone(DEF.machines[v]||[]);
+  });
 }
+function storeCfg(){try{localStorage.setItem(CKEY,JSON.stringify({v:3,shafts:SHAFTS,vendors:VENDORS,catalogs:CATS,machines:MACH}))}catch(e){}}
+let cfgDraft=null,cfgVendor='';
+const splitLine=l=>l.split(/[,，|]/).map(s=>s.trim());
+function parseCatalog(t){
+  return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=splitLine(l),ty=p[1]||'';
+    return{name:p[0],type:/多/.test(ty)?'g':/區/.test(ty)?'r':/號|機/.test(ty)?'m':'s'};
+  }).filter(c=>c.name);
+}
+function parseMachines(t){
+  return t.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+    const p=splitLine(l),ty=p[1]||'';
+    return{name:p[0],type:/噸|T/i.test(ty)?'ct':'cn'};
+  }).filter(c=>c.name);
+}
+function fillCfgLists(){
+  $('cc').value=(cfgDraft.catalogs[cfgVendor]||[]).map(c=>`${c.name},${TL[c.type]||'單井'}`).join('\n');
+  $('cm').value=(cfgDraft.machines[cfgVendor]||[]).map(c=>`${c.name},${ML[c.type]||'數量'}`).join('\n');
+}
+function stashCfg(){
+  if(!cfgDraft||!cfgVendor)return;
+  cfgDraft.catalogs[cfgVendor]=parseCatalog($('cc').value);
+  cfgDraft.machines[cfgVendor]=parseMachines($('cm').value);
+}
+function cfgVendorChange(v){stashCfg();cfgVendor=v;fillCfgLists()}
 function renderCfg(){
   $('sy-url').value=sync.url;$('sy-tk').value=sync.token;
   $('cs').value=SHAFTS.join(', ');
   $('cv').value=VENDORS.join('\n');
-  $('cc').value=CATALOG.map(c=>`${c.name},${TL[c.type]||'單井'}`).join('\n');
+  cfgDraft={catalogs:clone(CATS),machines:clone(MACH)};
+  if(!VENDORS.includes(cfgVendor))cfgVendor=VENDORS[0]||'';
+  $('cvs').innerHTML=VENDORS.map(v=>`<option value="${esc(v)}"${v===cfgVendor?' selected':''}>${esc(v)}</option>`).join('');
+  fillCfgLists();
   $('ver').textContent='版本 '+APP_VER;
   statIdle();
 }
 function saveCfg(){
+  stashCfg();
   const sh=[...new Set($('cs').value.split(/[,，\n]/).map(s=>s.trim()).filter(Boolean))];
   const vn=[...new Set($('cv').value.split('\n').map(s=>s.trim()).filter(Boolean))];
-  const ct=$('cc').value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
-    const p=l.split(/[,，|]/).map(s=>s.trim());
-    const t=p[1]||'';
-    return{name:p[0],type:/區/.test(t)?'r':/號|機/.test(t)?'m':'s'};
-  }).filter(c=>c.name);
-  if(!sh.length||!vn.length||!ct.length){toast('三個清單都至少要有一項');return}
-  try{localStorage.setItem(CKEY,JSON.stringify({shafts:sh,vendors:vn,catalog:ct}))}catch(e){}
-  SHAFTS=sh;VENDORS=vn;CATALOG=ct;
-  render();toast('已儲存清單');
+  if(!sh.length||!vn.length){toast('工作井與廠商至少要有一項');return}
+  SHAFTS=sh;VENDORS=vn;CATS={};MACH={};
+  vn.forEach(v=>{
+    CATS[v]=cfgDraft.catalogs[v]||clone(DEF.catalogs[v]||[]);
+    MACH[v]=cfgDraft.machines[v]||clone(DEF.machines[v]||[]);
+  });
+  storeCfg();render();renderCfg();toast('已儲存清單');
 }
 function resetCfg(){
   if(!confirm('清單恢復成預設？'))return;
@@ -242,7 +323,7 @@ function load(){
   try{
     const s=JSON.parse(localStorage.getItem(KEY)||'null');
     if(s&&s.groups&&s.groups.length){
-      groups=s.groups.map(g=>Object.assign(newGroup(),g,{auto:true})); // 日期重新自動（今天起）
+      groups=s.groups.map(g=>Object.assign(fixGroup(g),{auto:true})); // 日期重新自動（今天起）
       $('skipWeekend').checked=s.skip!==false;
       $('sep').value=s.sep||'、';
       $('carry').checked=s.carry!==false;
@@ -259,28 +340,52 @@ function resetAll(){
   render();
 }
 
-/* ---------- 紀錄資料 ---------- */
-// 每天一筆：hist['2026-11-06']={...內容, plan:false(實際)/true(預計), updatedAt:毫秒}
-// 刪除時留下 {deleted:true, plan, updatedAt}，讓其他設備同步時也會刪掉
+/* ---------- 紀錄資料（依「日期|廠商」分開存） ---------- */
+// hist['2026-11-06|測量隊']={...內容, plan:false(實際)/true(預計), updatedAt, key, vname}
+// 刪除時留下 {deleted:true, plan, updatedAt, key, vname}，讓其他設備同步時也會刪掉
+const dateOf=k=>String(k).split('|')[0];
+const keyOf=(d,v)=>d+'|'+v;
+const recVendor=r=>(r.vname||vname(r)||DEFV).trim()||DEFV;
+function fixRec(k,r){
+  k=String(k);
+  const v=recVendor(r);
+  const nk=k.includes('|')?k:keyOf(k,v);
+  r.key=nk;
+  r.vname=r.vname||(k.includes('|')?k.split('|').slice(1).join('|'):v);
+  return nk;
+}
 function loadHist(){try{hist=JSON.parse(localStorage.getItem(HKEY)||'{}')||{}}catch(e){hist={}}}
 function saveHist(){try{localStorage.setItem(HKEY,JSON.stringify(hist))}catch(e){toast('儲存失敗：瀏覽器禁止儲存')}}
 function histChanged(){saveHist();autoSync()}
+function migrateHist(){ // 舊版以日期為鍵 → 改為「日期|廠商」
+  let ch=false;
+  Object.keys(hist).forEach(k=>{
+    const r=hist[k];
+    if(!r||typeof r!=='object'){delete hist[k];ch=true;return}
+    const nk=fixRec(k,r);
+    if(nk!==k){hist[nk]=mergeRec(hist[nk],r);delete hist[k];ch=true}
+  });
+  if(ch)saveHist();
+}
 function snap(g){const c=clone(g);delete c.auto;return c}
 function hasWork(g){return g.items.some(it=>itemText(it))}
-const live=d=>hist[d]&&!hist[d].deleted;
+const live=k=>hist[k]&&!hist[k].deleted;
 function mergeRec(a,b){
   if(!a)return b;if(!b)return a;
   const pa=a.plan?1:0,pb=b.plan?1:0;
   if(!a.deleted&&!b.deleted&&pa!==pb)return pa<pb?a:b; // 實際優先於預計
   return(a.updatedAt||0)>=(b.updatedAt||0)?a:b;
 }
+// 同廠商的第一組＝實際，同廠商之後的組＝預計
+function isActual(i){const v=vname(groups[i]);return!groups.slice(0,i).some(x=>vname(x)===v)}
 function saveRecords(silent){
   let n=0;const now=Date.now();
   groups.forEach((g,i)=>{
-    if(!g.date||!hasWork(g))return;
-    const plan=i>0;
-    if(plan&&live(g.date)&&!hist[g.date].plan)return; // 該日已有「實際」，預計不覆蓋
-    hist[g.date]=Object.assign(snap(g),{plan,updatedAt:now});n++;
+    const v=vname(g);
+    if(!g.date||!v||!hasWork(g))return;
+    const plan=!isActual(i),k=keyOf(g.date,v);
+    if(plan&&live(k)&&!hist[k].plan)return; // 該日該廠商已有「實際」，預計不覆蓋
+    hist[k]=Object.assign(snap(g),{plan,updatedAt:now,key:k,vname:v});n++;
   });
   if(n)histChanged();
   if(!silent)toast(n?`已存入 ${n} 筆紀錄`:'沒有工項可存入');
@@ -293,7 +398,7 @@ function saveSync(){try{localStorage.setItem(SKEY,JSON.stringify(sync))}catch(e)
 function stamp(ms){if(!ms)return'尚未同步';const d=new Date(ms);return`${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`}
 function setStat(t){document.querySelectorAll('.syncStat').forEach(e=>e.textContent=t)}
 function statIdle(){setStat(sync.url&&sync.token?`雲端同步已設定，上次同步：${stamp(sync.last)}`:'尚未設定雲端同步（到「設定」分頁填入）')}
-function viewOf(r){return{kind:r.plan?'預計':'實際',shaft:shaftText(r),vendor:vendorText(r),crew:r.crew,foreign:r.foreign,work:workText(r,'、'),tool:r.tool,other:r.other}}
+function viewOf(r){return{kind:r.plan?'預計':'實際',shaft:shaftText(r),vendor:vendorText(r),crew:r.crew,foreign:r.foreign,work:workText(r,'、'),tool:toolsText(r),other:r.other}}
 let syncing=false,syncTimer=null;
 async function syncNow(silent){
   if(!sync.url||!sync.token){if(!silent)toast('請先到「設定」填入網址與同步碼');return false}
@@ -301,14 +406,17 @@ async function syncNow(silent){
   syncing=true;setStat('同步中…');
   try{
     const recs={};
-    Object.keys(hist).forEach(d=>{const r=hist[d];recs[d]=r.deleted?r:Object.assign({},r,{view:viewOf(r)})});
+    Object.keys(hist).forEach(k=>{const r=hist[k];recs[k]=r.deleted?r:Object.assign({},r,{view:viewOf(r)})});
     const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),25000);
     const res=await fetch(sync.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:sync.token,action:'sync',records:recs}),signal:ctl.signal});
     clearTimeout(to);
     const j=await res.json();
     if(!j.ok)throw new Error(j.error||'伺服器回應錯誤');
     let n=0;
-    Object.keys(j.records||{}).forEach(d=>{const m=mergeRec(hist[d],j.records[d]);if(m!==hist[d]){hist[d]=m;n++}});
+    Object.keys(j.records||{}).forEach(k=>{
+      const r=j.records[k];const nk=fixRec(k,r);
+      const m=mergeRec(hist[nk],r);if(m!==hist[nk]){hist[nk]=m;n++}
+    });
     saveHist();
     sync.last=Date.now();saveSync();statIdle();
     if(!silent||n)toast(n?`同步完成，更新 ${n} 筆`:'同步完成');
@@ -327,6 +435,8 @@ function autoSync(){
 function refreshViews(){
   if(!$('p-his').classList.contains('hide'))renderHist();
   if(!$('p-sta').classList.contains('hide'))renderStats();
+  const ae=document.activeElement;
+  if(!ae||!/INPUT|TEXTAREA|SELECT/.test(ae.tagName))render();
 }
 function saveSyncCfg(){
   const u=$('sy-url').value.trim(),t=$('sy-tk').value.trim();
@@ -359,19 +469,29 @@ function nextDate(prev){
   if($('skipWeekend').checked){while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);}
   return iso(d);
 }
+// 自動日期：同廠商的第一組＝今天；同廠商之後的組＝順接該廠商上一組
 function resolveDates(){
   groups.forEach((g,i)=>{
-    if(g.auto)g.date=i===0?iso(new Date()):(groups[i-1].date?nextDate(groups[i-1].date):'');
+    if(!g.auto)return;
+    const v=vname(g);let prev=null;
+    for(let k=i-1;k>=0;k--){if(vname(groups[k])===v){prev=groups[k];break}}
+    g.date=prev?(prev.date?nextDate(prev.date):''):iso(new Date());
   });
 }
 
 /* ---------- 輸出 ---------- */
 function shaftText(g){return[...g.shafts,(g.shaftC||'').trim()].filter(Boolean).join('、')}
+const segText=s=>s.a===s.b?s.a:`${s.a}-${s.b}`;
 function detail(it){
   if(it.type==='s')return it.a;
   if(it.type==='r')return it.a===it.b?it.a:`${it.a}-${it.b}`;
   if(it.type==='m')return`No.${it.m}`;
+  if(it.type==='g')return(it.segs||[]).map(segText).join('、');
   return'';
+}
+function detailsOf(it){ // 月統計用：多區段每段各自計算
+  if(it.type==='g')return(it.segs||[]).map(segText);
+  const d=detail(it);return d?[d]:[];
 }
 function itemText(it){
   if(it.type==='t')return(it.text||'').trim();
@@ -379,36 +499,66 @@ function itemText(it){
 }
 function workText(g,sep){
   sep=sep||$('sep').value;
-  const list=g.items.map(itemText).filter(Boolean);
+  const list=(g.items||[]).map(itemText).filter(Boolean);
   if(sep==='\n')return list.length?'\n'+list.map((t,i)=>`${i+1}. ${t}`).join('\n'):'';
   return list.join(sep);
 }
-function vendorText(g){return((g.vendor==='__other'?g.vendorC:g.vendor)||'').trim()}
+function toolText(t){
+  if(t.type==='x')return(t.text||'').trim();
+  const c=t.cnt||'1';
+  if(t.type==='ct')return`${String(t.ton||'').trim()}${t.name}*${c}`;
+  return`${t.name}*${c}`;
+}
+function toolsText(r){
+  const a=(r.tools||[]).map(toolText).filter(Boolean);
+  if(!a.length&&typeof r.tool==='string'&&r.tool.trim())a.push(r.tool.trim()); // 舊版紀錄
+  return a.join('、');
+}
 function build(){
   return groups.map(g=>[
     `日期：${roc(g.date)}`,
     `工作井：${shaftText(g)}`,
-    `廠商：${vendorText(g)}`,
-    `出工人數：${g.crew}`,
-    `外勞人數：${g.foreign}`,
+    `廠商：${vname(g)}`,
+    `出工人數：${g.crew||''}`,
+    `外勞人數：${g.foreign||''}`,
     `工項：${workText(g)}`,
-    `機具：${g.tool}`,
+    `機具：${toolsText(g)}`,
     `其他：${g.other}`
   ].join('\n')).join('\n\n');
 }
 
 /* ---------- 回報畫面 ---------- */
-function shOpts(cur){return SHAFTS.map(x=>`<option${x===cur?' selected':''}>${x}</option>`).join('')}
+function shOpts(cur){
+  const l=(cur&&!SHAFTS.includes(cur))?[...SHAFTS,cur]:SHAFTS;
+  return l.map(x=>`<option${x===cur?' selected':''}>${esc(x)}</option>`).join('');
+}
 function vOpts(cur){
   const list=(cur&&cur!=='__other'&&!VENDORS.includes(cur))?[...VENDORS,cur]:VENDORS;
   return list.map(x=>`<option value="${esc(x)}"${cur===x?' selected':''}>${esc(x)}</option>`).join('')
    +`<option value="__other"${cur==='__other'?' selected':''}>其他（自填）</option>`;
+}
+const numIsOther=(g,f)=>!!g[f+'Other']||(g[f]!==''&&g[f]!=null&&!NUM_LIST.includes(String(g[f])));
+function numHTML(i,f,label){
+  const g=groups[i],o=numIsOther(g,f);
+  return`<div><label>${label}</label>
+    <select onchange="setNum(${i},'${f}',this.value)">
+      <option value=""${!o&&!g[f]?' selected':''}>（空白）</option>
+      ${NUM_LIST.map(n=>`<option value="${n}"${!o&&String(g[f])===n?' selected':''}>${n}</option>`).join('')}
+      <option value="__other"${o?' selected':''}>其他（自填）</option>
+    </select>
+    <input class="${o?'':'hide'}" style="margin-top:6px" inputmode="numeric" placeholder="自填人數" value="${esc(g[f]||'')}" oninput="groups[${i}].${f}=this.value;upd()">
+  </div>`;
 }
 function itemHTML(gi,ii,it){
   const set=k=>`onchange="setItem(${gi},${ii},'${k}',this.value)"`;
   let h='';
   if(it.type==='t'){
     h=`<input placeholder="自填工項" value="${esc(it.text||'')}" oninput="setItem(${gi},${ii},'text',this.value)">`;
+  }else if(it.type==='g'){
+    const segs=it.segs||[];
+    h=`<span class="nm">${esc(it.name)}</span><div class="grp">`
+     +segs.map((s,si)=>`<span class="grp"><select onchange="setSeg(${gi},${ii},${si},'a',this.value)">${shOpts(s.a)}</select>~<select onchange="setSeg(${gi},${ii},${si},'b',this.value)">${shOpts(s.b)}</select>${segs.length>1?`<button class="sm" onclick="delSeg(${gi},${ii},${si})">－</button>`:''}</span>`).join('')
+     +`<button class="sm" onclick="addSeg(${gi},${ii})">＋區段</button></div><div class="mut" style="width:100%">起點＝終點時，只顯示單一井號</div>`;
   }else{
     if(it.type==='s')h+=`<select ${set('a')}>${shOpts(it.a)}</select>`;
     if(it.type==='r')h+=`<select ${set('a')}>${shOpts(it.a)}</select>~<select ${set('b')}>${shOpts(it.b)}</select>`;
@@ -417,13 +567,23 @@ function itemHTML(gi,ii,it){
   }
   return`<div class="item">${h}<button class="sm x" onclick="delItem(${gi},${ii})">✕</button></div>`;
 }
+function toolHTML(gi,ti,t){
+  const cnt=`<select onchange="setTool(${gi},${ti},'cnt',this.value)">${NUM_LIST.map(n=>`<option${String(t.cnt||'1')===n?' selected':''}>${n}</option>`).join('')}</select>`;
+  let h='';
+  if(t.type==='x')h=`<input placeholder="自填機具" value="${esc(t.text||'')}" oninput="setTool(${gi},${ti},'text',this.value)">`;
+  else if(t.type==='ct')h=`<input class="ton" inputmode="numeric" placeholder="噸數" value="${esc(t.ton||'')}" oninput="setTool(${gi},${ti},'ton',this.value)"><span class="nm">${esc(t.name)}</span>×${cnt}`;
+  else h=`<span class="nm">${esc(t.name)}</span>×${cnt}`;
+  return`<div class="item">${h}<button class="sm x" onclick="delTool(${gi},${ti})">✕</button></div>`;
+}
 function render(){
   resolveDates();
   $('groups').innerHTML=groups.map((g,i)=>{
-    const ex=(i===0&&live(g.date))?hist[g.date]:null;
+    const act=isActual(i);
+    const ek=keyOf(g.date,vname(g));
+    const ex=(act&&live(ek))?hist[ek]:null;
     return`
   <div class="card">
-    <h2><span>第 ${i+1} 組 <span class="mut">（${i?'預計':'實際'}）</span></span><span>${ex?`<button class="sm" onclick="fillFromRec(0)">載入${ex.plan?'預計':'已存'}</button> `:''}${i>0?`<button class="sm" onclick="carryFrom(${i})">帶入上一組工項</button> `:''}${groups.length>1?`<button class="sm" onclick="delGroup(${i})">刪除</button>`:''}</span></h2>
+    <h2><span>第 ${i+1} 組 <span class="mut">（${act?'實際':'預計'}）</span></span><span>${ex?`<button class="sm" onclick="fillFromRec(${i})">載入${ex.plan?'預計':'已存'}</button> `:''}${i>0?`<button class="sm" onclick="carryFrom(${i})">帶入上一組</button> `:''}${groups.length>1?`<button class="sm" onclick="delGroup(${i})">刪除</button>`:''}</span></h2>
 
     <label>日期 ${g.auto?'（自動）':'（手動）'}</label>
     <div class="inline">
@@ -432,30 +592,33 @@ function render(){
     </div>
     <div class="roc" id="r${i}">${roc(g.date)}（${wk(g.date)}）</div>
 
+    <label>廠商</label>
+    <select onchange="setVendor(${i},this.value)">${vOpts(g.vendor)}</select>
+    <input class="${g.vendor==='__other'?'':'hide'}" style="margin-top:6px" placeholder="自填廠商" value="${esc(g.vendorC)}" oninput="groups[${i}].vendorC=this.value;upd()" onchange="render()">
+
     <label>工作井（可多選）</label>
     <div class="chips">${SHAFTS.map((s,k)=>`<button class="chip${g.shafts.includes(s)?' on':''}" onclick="toggleShaft(${i},${k})">${esc(s)}</button>`).join('')}</div>
     <input style="margin-top:6px" placeholder="其他工作井（自填，可留空）" value="${esc(g.shaftC)}" oninput="groups[${i}].shaftC=this.value;upd()">
 
-    <label>廠商</label>
-    <select onchange="setVendor(${i},this.value)">${vOpts(g.vendor)}</select>
-    <input class="${g.vendor==='__other'?'':'hide'}" style="margin-top:6px" placeholder="自填廠商" value="${esc(g.vendorC)}" oninput="groups[${i}].vendorC=this.value;upd()">
-
     <div class="row">
-      <div><label>出工人數</label>
-        <select onchange="setCrew(${i},this.value)">${crewOpts(g)}</select>
-        <input class="${crewIsOther(g)?'':'hide'}" style="margin-top:6px" inputmode="numeric" placeholder="自填人數" value="${esc(g.crew)}" oninput="groups[${i}].crew=this.value;upd()">
-      </div>
-      <div><label>外勞人數</label><input inputmode="numeric" value="${esc(g.foreign)}" oninput="groups[${i}].foreign=this.value;upd()"></div>
+      ${numHTML(i,'crew','出工人數')}
+      ${numHTML(i,'foreign','外勞人數')}
     </div>
 
     <label>工項</label>
     <div>${g.items.map((it,ii)=>itemHTML(i,ii,it)).join('')}</div>
     <div class="chips pal">
-      ${CATALOG.map((c,ci)=>`<button onclick="addItem(${i},${ci})">＋${esc(c.name)}</button>`).join('')}
+      ${catalogFor(g).map((c,ci)=>`<button onclick="addItem(${i},${ci})">＋${esc(c.name)}</button>`).join('')}
       <button onclick="addItem(${i},-1)">＋自填工項</button>
     </div>
 
-    <label>機具</label><input value="${esc(g.tool)}" oninput="groups[${i}].tool=this.value;upd()">
+    <label>機具</label>
+    <div>${g.tools.map((t,ti)=>toolHTML(i,ti,t)).join('')}</div>
+    <div class="chips pal">
+      ${machinesFor(g).map((c,ci)=>`<button onclick="addTool(${i},${ci})">＋${esc(c.name)}</button>`).join('')}
+      <button onclick="addTool(${i},-1)">＋自填機具</button>
+    </div>
+
     <label>其他</label><input value="${esc(g.other)}" oninput="groups[${i}].other=this.value;upd()">
   </div>`}).join('');
   upd();
@@ -478,56 +641,72 @@ function toggleShaft(i,k){
   g.shafts=g.shafts.includes(s)?g.shafts.filter(x=>x!==s):SHAFTS.filter(x=>x===s||g.shafts.includes(x));
   render();
 }
-function setVendor(i,v){groups[i].vendor=v;render()}
-const CREW_LIST=['1','2','3','4','5','6','7','8','9'];
-const crewIsOther=g=>!!g.crewOther||(g.crew!==''&&!CREW_LIST.includes(String(g.crew)));
-function crewOpts(g){
-  const o=crewIsOther(g);
-  return`<option value=""${!o&&g.crew===''?' selected':''}>（空白）</option>`
-    +CREW_LIST.map(n=>`<option value="${n}"${!o&&String(g.crew)===n?' selected':''}>${n}</option>`).join('')
-    +`<option value="__other"${o?' selected':''}>其他（自填）</option>`;
-}
-function setCrew(i,v){
+function setVendor(i,v){
   const g=groups[i];
-  if(v==='__other'){g.crewOther=true;if(CREW_LIST.includes(String(g.crew)))g.crew=''}
-  else{g.crewOther=false;g.crew=v}
+  if(v===g.vendor){render();return}
+  if((g.items.length||g.tools.length)&&!confirm('更換廠商會清空本組的工項與機具，確定？')){render();return}
+  g.vendor=v;g.items=[];g.tools=[];render();
+}
+function setNum(i,f,v){
+  const g=groups[i];
+  if(v==='__other'){g[f+'Other']=true;if(NUM_LIST.includes(String(g[f])))g[f]=''}
+  else{g[f+'Other']=false;g[f]=v}
   render();
 }
 function addItem(gi,ci){
   const g=groups[gi];
-  if(ci<0){g.items.push({type:'t',text:''});}
+  if(ci<0){g.items.push({type:'t',text:''})}
   else{
-    const c=CATALOG[ci];
-    const a=g.shafts[0]||SHAFTS[0], b=g.shafts[g.shafts.length-1]||a;
-    g.items.push({type:c.type,name:c.name,a,b,m:'1'});
+    const c=catalogFor(g)[ci];if(!c)return;
+    const a=g.shafts[0]||SHAFTS[0],b=g.shafts[g.shafts.length-1]||a;
+    if(c.type==='g')g.items.push({type:'g',name:c.name,segs:[{a,b}]});
+    else g.items.push({type:c.type,name:c.name,a,b,m:'1'});
   }
   render();
 }
 function setItem(gi,ii,k,v){groups[gi].items[ii][k]=v;upd()}
 function delItem(gi,ii){groups[gi].items.splice(ii,1);render()}
+function setSeg(gi,ii,si,k,v){groups[gi].items[ii].segs[si][k]=v;upd()}
+function addSeg(gi,ii){
+  const g=groups[gi],it=g.items[ii];
+  const a=g.shafts[0]||SHAFTS[0],b=g.shafts[g.shafts.length-1]||a;
+  it.segs.push({a,b});render();
+}
+function delSeg(gi,ii,si){const it=groups[gi].items[ii];if(it.segs.length>1){it.segs.splice(si,1);render()}}
+function addTool(gi,ci){
+  const g=groups[gi];
+  if(ci<0)g.tools.push({type:'x',text:''});
+  else{const m=machinesFor(g)[ci];if(!m)return;g.tools.push({type:m.type,name:m.name,cnt:'1',ton:''})}
+  render();
+}
+function setTool(gi,ti,k,v){groups[gi].tools[ti][k]=v;upd()}
+function delTool(gi,ti){groups[gi].tools.splice(ti,1);render()}
 function carryFrom(i){
   if(i<1)return;
-  if(groups[i].items.length&&!confirm('會取代本組目前的工項，確定？'))return;
-  groups[i].items=clone(groups[i-1].items);
-  render();toast('已帶入上一組工項');
+  const g=groups[i],p=groups[i-1];
+  if((g.items.length||g.tools.length)&&!confirm('會取代本組目前的工項與機具，確定？'))return;
+  g.items=clone(p.items);g.tools=clone(p.tools);
+  render();toast('已帶入上一組工項與機具');
 }
 function addGroup(){
   const prev=groups[groups.length-1];
   const g=newGroup();
   if(prev){
-    g.shafts=[...prev.shafts];g.shaftC=prev.shaftC;g.vendor=prev.vendor;g.vendorC=prev.vendorC;g.crew=prev.crew;
-    if($('carry').checked)g.items=clone(prev.items);
+    g.shafts=[...prev.shafts];g.shaftC=prev.shaftC;g.vendor=prev.vendor;g.vendorC=prev.vendorC;
+    g.crew=prev.crew;g.crewOther=prev.crewOther;g.foreign=prev.foreign;g.foreignOther=prev.foreignOther;
+    if($('carry').checked){g.items=clone(prev.items);g.tools=clone(prev.tools)}
   }
   groups.push(g);render();
 }
 function delGroup(i){groups.splice(i,1);render()}
 function fromRec(r,keep){
-  const g=Object.assign(newGroup(),clone(r),keep);
-  delete g.plan;delete g.updatedAt;delete g.deleted;
+  const g=fixGroup(clone(r));
+  Object.assign(g,keep);
+  delete g.plan;delete g.updatedAt;delete g.deleted;delete g.key;delete g.vname;
   return g;
 }
 function fillFromRec(i){
-  const g=groups[i],r=hist[g.date];
+  const g=groups[i],r=hist[keyOf(g.date,vname(g))];
   if(!r||r.deleted)return;
   if(hasWork(g)&&!confirm('會取代本組目前內容，確定？'))return;
   groups[i]=fromRec(r,{auto:g.auto,date:g.date});
@@ -551,33 +730,47 @@ function tab(t){
   window.scrollTo(0,0);
 }
 
+/* ---------- 廠商篩選 ---------- */
+function vendorsAll(){return[...new Set([...VENDORS,...Object.values(hist).map(r=>r.vname).filter(Boolean)])]}
+function fillVSel(id,withAll){
+  const el=$(id),cur=el.value,vs=vendorsAll();
+  el.innerHTML=(withAll?'<option value="">全部廠商</option>':'')+vs.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  el.value=(vs.includes(cur)||(withAll&&cur===''))?cur:(withAll?'':(vs[0]||''));
+}
+const recsOf=(m,v)=>Object.keys(hist).filter(k=>dateOf(k).startsWith(m)&&live(k)&&(!v||hist[k].vname===v))
+  .sort((a,b)=>dateOf(a)<dateOf(b)?-1:dateOf(a)>dateOf(b)?1:(a<b?-1:1));
+
 /* ---------- 紀錄頁 ---------- */
-const recsOf=m=>Object.keys(hist).filter(d=>d.startsWith(m)&&live(d)).sort();
+let listKeys=[];
 function renderHist(){
-  const m=$('hm').value;
-  const ds=recsOf(m).reverse();
-  $('histList').innerHTML=ds.length?ds.map(d=>{
-    const g=hist[d];
+  fillVSel('hv',true);
+  const m=$('hm').value,v=$('hv').value;
+  listKeys=recsOf(m,v).reverse();
+  $('histList').innerHTML=listKeys.length?listKeys.map((k,idx)=>{
+    const g=hist[k],d=dateOf(k),tl=toolsText(g);
     return`<div class="card">
-      <h2><span>${roc(d)}（${wk(d)}）<span class="tag${g.plan?' plan':''}">${g.plan?'預計':'實際'}</span></span><span><button class="sm" onclick="loadRec('${d}')">載入</button> <button class="sm" onclick="delRec('${d}')">刪除</button></span></h2>
-      <div class="mut">工作井：${esc(shaftText(g))}　廠商：${esc(vendorText(g))}　出工 ${esc(g.crew)}${g.foreign?`　外勞 ${esc(g.foreign)}`:''}</div>
+      <h2><span>${roc(d)}（${wk(d)}）<span class="tag v">${esc(g.vname||'')}</span><span class="tag${g.plan?' plan':''}">${g.plan?'預計':'實際'}</span></span><span><button class="sm" onclick="loadRec(${idx})">載入</button> <button class="sm" onclick="delRec(${idx})">刪除</button></span></h2>
+      <div class="mut">工作井：${esc(shaftText(g))}　出工 ${esc(g.crew||'')}${g.foreign?`　外勞 ${esc(g.foreign)}`:''}</div>
       <div style="margin-top:6px">${esc(workText(g,'、'))}</div>
+      ${tl?`<div class="mut" style="margin-top:4px">機具：${esc(tl)}</div>`:''}
     </div>`}).join(''):`<div class="card mut">這個月還沒有紀錄。在「回報」按「存入紀錄」或「複製」就會記錄。</div>`;
 }
-function loadRec(d){
-  if(!live(d))return;
+function loadRec(idx){
+  const k=listKeys[idx];
+  if(!k||!live(k))return;
   if(!confirm('載入會取代回報頁目前內容，確定？'))return;
-  groups=[fromRec(hist[d],{auto:false,date:d})];
+  groups=[fromRec(hist[k],{auto:false,date:dateOf(k)})];
   render();tab('rep');
 }
-function delRec(d){
-  if(!live(d))return;
-  if(!confirm(`刪除 ${roc(d)} 的紀錄？`))return;
-  hist[d]={deleted:true,plan:!!hist[d].plan,updatedAt:Date.now()};
+function delRec(idx){
+  const k=listKeys[idx];
+  if(!k||!live(k))return;
+  if(!confirm(`刪除 ${roc(dateOf(k))}（${hist[k].vname}）的紀錄？`))return;
+  hist[k]={deleted:true,plan:!!hist[k].plan,updatedAt:Date.now(),key:k,vname:hist[k].vname};
   histChanged();renderHist();
 }
 function exportData(){
-  const blob=new Blob([JSON.stringify({version:2,history:hist})],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({version:3,history:hist})],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download=`工程回報紀錄_${iso(new Date())}.json`;
   document.body.appendChild(a);a.click();a.remove();
@@ -590,11 +783,12 @@ function importData(f){
       const o=JSON.parse(r.result);
       const h=o.history||o;
       let n=0;
-      Object.keys(h).forEach(d=>{
-        const x=h[d];
-        if(/^\d{4}-\d{2}-\d{2}$/.test(d)&&x&&(x.deleted||Array.isArray(x.items))){
-          const m=mergeRec(hist[d],x);
-          if(m!==hist[d]){hist[d]=m;n++}
+      Object.keys(h).forEach(k=>{
+        const x=h[k];
+        if(/^\d{4}-\d{2}-\d{2}(\|.*)?$/.test(k)&&x&&(x.deleted||Array.isArray(x.items))){
+          const nk=fixRec(k,x);
+          const m=mergeRec(hist[nk],x);
+          if(m!==hist[nk]){hist[nk]=m;n++}
         }
       });
       histChanged();renderHist();toast(`已匯入 ${n} 筆`);
@@ -603,30 +797,30 @@ function importData(f){
   r.readAsText(f);
 }
 
-/* ---------- 月統計（只算實際） ---------- */
-function calcStats(m){
-  const ds=recsOf(m).filter(d=>!hist[d].plan);
+/* ---------- 月統計（依廠商，只算實際） ---------- */
+function calcStats(m,vendor){
+  const ks=recsOf(m,vendor).filter(k=>!hist[k].plan);
   let crew=0,foreign=0;const map={};
-  ds.forEach(d=>{
-    const g=hist[d];
+  ks.forEach(k=>{
+    const g=hist[k],d=dateOf(k);
     crew+=parseFloat(g.crew)||0;foreign+=parseFloat(g.foreign)||0;
     (g.items||[]).forEach(it=>{
       const name=it.type==='t'?(it.text||'').trim():it.name;
       if(!name)return;
       const e=map[name]||(map[name]={days:new Set(),det:{}});
       e.days.add(d);
-      const k=detail(it);
-      (e.det[k]||(e.det[k]=new Set())).add(d);
+      detailsOf(it).forEach(x=>{(e.det[x]||(e.det[x]=new Set())).add(d)});
     });
   });
-  const order=n=>{const i=CATALOG.findIndex(c=>c.name===n);return i<0?999:i};
+  const cat=CATS[vendor]||[];
+  const order=n=>{const i=cat.findIndex(c=>c.name===n);return i<0?999:i};
   const names=Object.keys(map).sort((a,b)=>order(a)-order(b)||a.localeCompare(b));
-  return{ds,crew,foreign,map,names};
+  return{ds:ks,crew,foreign,map,names};
 }
 const detKeys=e=>Object.keys(e.det).filter(Boolean).sort((a,b)=>e.det[b].size-e.det[a].size||a.localeCompare(b,'zh',{numeric:true}));
 function monthLabel(m){const[y,mo]=m.split('-').map(Number);return`${y-1911}年${mo}月`}
-function statText(m,s){
-  const lines=[`${monthLabel(m)} 工項統計`,`出工天數：${s.ds.length}天`,`出工人次：${s.crew}`,`外勞人次：${s.foreign}`,''];
+function statText(m,v,s){
+  const lines=[`${monthLabel(m)} ${v} 工項統計`,`出工天數：${s.ds.length}天`,`出工人次：${s.crew}`,`外勞人次：${s.foreign}`,''];
   s.names.forEach(n=>{
     const e=s.map[n],ks=detKeys(e);
     lines.push(`${n}：${e.days.size}天`+(ks.length?`（${ks.map(k=>`${k} ${e.det[k].size}天`).join('、')}）`:''));
@@ -634,9 +828,10 @@ function statText(m,s){
   return lines.join('\n');
 }
 function renderStats(){
-  const m=$('sm').value,s=calcStats(m);
-  if(!s.ds.length){$('statBox').innerHTML=`<div class="card mut">${monthLabel(m)}還沒有「實際」紀錄。</div>`;return}
-  window._statText=statText(m,s);
+  fillVSel('sv',false);
+  const m=$('sm').value,v=$('sv').value,s=calcStats(m,v);
+  if(!s.ds.length){$('statBox').innerHTML=`<div class="card mut">${monthLabel(m)} ${esc(v)} 還沒有「實際」紀錄。</div>`;return}
+  window._statText=statText(m,v,s);
   $('statBox').innerHTML=`
   <div class="card">
     <div class="sum">
@@ -657,7 +852,7 @@ function renderStats(){
 async function copyStat(){await copy(window._statText||'');toast('已複製統計')}
 
 /* ---------- 啟動 ---------- */
-loadCfg();loadHist();loadSync();applyHash();load();
+loadCfg();loadHist();migrateHist();loadSync();applyHash();load();
 $('hm').value=$('sm').value=iso(new Date()).slice(0,7);
 render();
 autoSync();
